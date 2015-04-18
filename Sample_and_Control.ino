@@ -1,3 +1,11 @@
+/**
+This program is to be used to sample the arduino adcs and return data to a 
+host device when requested using the character 'S', sent from the host.
+Additionally, it allows for control of an led from the host pc by the
+characters 'O' and 'X'.
+**/
+
+
 // SETUP THE SERIAL CONNECTION AND INTERRUPTS //
 void setup()
 {
@@ -17,16 +25,16 @@ void setup()
 	TIMSK1 |= (1 << OCIE1A);
 	sei();
 
-	// Set the baud rate
+	// Set the baud rate to 115.2 kbaud
 	Serial.begin(115200);
 }
 
 
-// GLOBAL VARIABLES //
+// variables and defines
 #define vecSize 200
-char HEADER = 'H';
-unsigned int adc[8][vecSize] = { 0 };
-char cmd;
+#define HEADER 'H'
+unsigned int adc[1][vecSize] = { 0 };
+char cmd = 'z';
 unsigned int idx = 0;
 unsigned int idx_send = 0;
 bool state = 0;
@@ -38,136 +46,53 @@ void loop()
 	cmd = Serial.read();
 	switch (cmd)
 	{
-	case 's': //send vector to pc
+	case 'S': //send vector to pc
 		sendVec();
 		break;
-	case 'O':
+	case 'O': // turn off the led
 		state = 0;
 		break;
-	case 'X':
+	case 'X': // turn on the led
 		state = 1;
 		break;
-	default:
+	default:  // keep stuff the same
 		state = state;
 		break;
 	}
+	// set the led state
 	digitalWrite(13, state);
 }
 
-
-// INTERRUPT FOR READING THE ADCS
-ISR(TIMER1_COMPA_vect){  //timer1 interrupt at 120Hz reads the ADC
-	adc[0][idx] = analogRead(A0) | 0x0000;
+// adc read interrupt at 120Hz
+ISR(TIMER1_COMPA_vect){
+	adc[0][idx] = analogRead(A0) | 0x0000; // read adc channel 0
 	idx++;
-}
-
-void sendVec()
-{
-	idx_send = idx + 72;
-	int cnt = 0;
-	Serial.print('H');
-	while (cnt < 128)
+	if (idx == vecSize)
 	{
-		if (idx_send > vecSize)
-		{
-			idx_send = 0;
-		}
-		Serial.write(highByte(adc[0][idx_send]));
-		Serial.write(lowByte(adc[0][idx_send]));
-		cnt++;
+		idx = 0;
 	}
 }
 
 
 
-
-
-
-
-/**
-
-
-
-
-
-
-
-
-// TEST FUNCTION FOR ADC READING ONE CHANNEL //
-void readACD_test_1_channel()
+void sendVec()
 {
-	adc[0] = analogRead(A0) | 0x1000;
+	// set the send index back 128 from the start
+	// if it is too large, the send loop will adjust
+	idx_send = idx + 72;
+	int cnt = 0;
+	Serial.print(HEADER);
+	while (cnt < 128)
+	{
+		// check if beyond limit of vector and adjust
+		if (idx_send >= vecSize)
+		{
+			idx_send = idx_send - vecSize;
+		}
+		// write the adc data
+		Serial.write(highByte(adc[0][idx_send]));
+		Serial.write(lowByte(adc[0][idx_send]));
+		idx_send++;
+		cnt++;
+	}
 }
-
-
-
-
-
-// ONE CHANNEL ADC DATA WRITE //
-void writeADC_test_1_channel()
-{
-	// START OF PACKET //
-	Serial.write(HEADER);
-	// CHANNEL 1 //
-	Serial.write(highByte(adc[0]));
-	Serial.write(lowByte(adc[0]));
-}
-
-
-// TEST FUNCTION FOR ADC READING ALL CHANNELS //
-void readACD_test()
-{
-	adc[0] = 0x1001;
-	adc[1] = 0x2002;
-	adc[2] = 0x3003;
-	adc[3] = 0x4004;
-	adc[4] = 0x5005;
-	adc[5] = 0x6006;
-	adc[6] = 0x7007;
-	adc[7] = 0x8008;
-}
-
-// READ ALL 8 ADCS //
-void readACD()
-{
-	adc[0] = (analogRead(A0) & 0x3ff) | 0x1000;
-	adc[1] = (analogRead(A1) & 0x3ff) | 0x2000;
-	adc[2] = (analogRead(A2) & 0x3ff) | 0x3000;
-	adc[3] = (analogRead(A3) & 0x3ff) | 0x4000;
-	adc[4] = (analogRead(A4) & 0x3ff) | 0x5000;
-	adc[5] = (analogRead(A5) & 0x3ff) | 0x6000;
-	adc[6] = (analogRead(A6) & 0x3ff) | 0x7000;
-	adc[7] = (analogRead(A7) & 0x3ff) | 0x8000;
-}
-
-
-// TRANSMIT DATA FROM ALL ADCS //
-void writeADC()
-{
-	// START OF PACKET //
-	Serial.write(HEADER);
-	// CHANNEL 1 //
-	Serial.write(highByte(adc[0]));
-	Serial.write(lowByte(adc[0]));
-	// CHANNEL 2 //
-	Serial.write(highByte(adc[1]));
-	Serial.write(lowByte(adc[1]));
-	// CHANNEL 3 //
-	Serial.write(highByte(adc[2]));
-	Serial.write(lowByte(adc[2]));
-	// CHANNEL 4 //
-	Serial.write(highByte(adc[3]));
-	Serial.write(lowByte(adc[3]));
-	// CHANNEL 5 //
-	Serial.write(highByte(adc[40]));
-	Serial.write(lowByte(adc[4]));
-	// CHANNEL 6 //
-	Serial.write(highByte(adc[5]));
-	Serial.write(lowByte(adc[5]));
-	// CHANNEL 7 //
-	Serial.write(highByte(adc[6]));
-	Serial.write(lowByte(adc[6]));
-	// CHANNEL 8 //
-	Serial.write(highByte(adc[7]));
-	Serial.write(lowByte(adc[7]));
-}**/
