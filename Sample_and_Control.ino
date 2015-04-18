@@ -21,20 +21,77 @@ void setup()
 	Serial.begin(115200);
 }
 
+
 // GLOBAL VARIABLES //
+#define vecSize 200
 char HEADER = 'H';
-unsigned int adc[8];
+unsigned int adc[8][vecSize] = { 0 };
 char cmd;
+unsigned int idx = 0;
+unsigned int idx_send = 0;
+bool state = 0;
 
 
 // MAIN LOOP //
 void loop()
 {
 	cmd = Serial.read();
-	
-	
-	writeADC_test_1_channel();
+	switch (cmd)
+	{
+	case 's': //send vector to pc
+		sendVec();
+		break;
+	case 'O':
+		state = 0;
+		break;
+	case 'X':
+		state = 1;
+		break;
+	default:
+		state = state;
+		break;
+	}
+	digitalWrite(13, state);
 }
+
+
+// INTERRUPT FOR READING THE ADCS
+ISR(TIMER1_COMPA_vect){  //timer1 interrupt at 120Hz reads the ADC
+	adc[0][idx] = analogRead(A0) | 0x0000;
+	idx++;
+}
+
+void sendVec()
+{
+	idx_send = idx + 72;
+	int cnt = 0;
+	Serial.print('H');
+	while (cnt < 128)
+	{
+		if (idx_send > vecSize)
+		{
+			idx_send = 0;
+		}
+		Serial.write(highByte(adc[0][idx_send]));
+		Serial.write(lowByte(adc[0][idx_send]));
+		cnt++;
+	}
+}
+
+
+
+
+
+
+
+/**
+
+
+
+
+
+
+
 
 // TEST FUNCTION FOR ADC READING ONE CHANNEL //
 void readACD_test_1_channel()
@@ -43,10 +100,7 @@ void readACD_test_1_channel()
 }
 
 
-// INTERRUPT FOR READING THE ADCS
-ISR(TIMER1_COMPA_vect){  //timer1 interrupt 120Hz reads the ADC
-	readACD_test_1_channel();
-}
+
 
 
 // ONE CHANNEL ADC DATA WRITE //
@@ -86,6 +140,7 @@ void readACD()
 	adc[7] = (analogRead(A7) & 0x3ff) | 0x8000;
 }
 
+
 // TRANSMIT DATA FROM ALL ADCS //
 void writeADC()
 {
@@ -115,4 +170,4 @@ void writeADC()
 	// CHANNEL 8 //
 	Serial.write(highByte(adc[7]));
 	Serial.write(lowByte(adc[7]));
-}
+}**/
