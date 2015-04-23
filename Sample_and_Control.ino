@@ -37,7 +37,7 @@ void setup()
 	// enable timer compare interrupt
 	TIMSK1 |= (1 << OCIE1A);
 	sei();
-
+	pinMode(13, OUTPUT);
 	// Set the baud rate to 115.2 kbaud
 	Serial.begin(115200);
 }
